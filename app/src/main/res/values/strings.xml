@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">AuthApp</string>
+    <string name="authenticate_login">Authenticate Login</string>
+    <string name="authentication_button">Authentication Button</string>
+</resources>
