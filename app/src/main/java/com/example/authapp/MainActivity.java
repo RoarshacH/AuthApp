@@ -1,6 +1,7 @@
 package com.example.authapp;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
@@ -18,6 +19,9 @@ import android.widget.Toast;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
@@ -31,7 +35,6 @@ public class MainActivity extends AppCompatActivity {
     private DatabaseReference notificationDatabase;
 
     FirebaseUser fUser;
-    DatabaseReference reference;
     Intent intent;
 
     @SuppressLint("SetTextI18n")
@@ -39,21 +42,54 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        FirebaseDatabase database = FirebaseDatabase.getInstance();
-        DatabaseReference myRef = database.getReference("message");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        String info = "New Authentication Request Received Please Click the Fingerprint icon to "+
+                "authenticate the Login Request";
         intent = getIntent();
         fUser = FirebaseAuth.getInstance().getCurrentUser();
         String uID = fUser.getUid();
         notificationDatabase = FirebaseDatabase.getInstance().getReference().child("notifications");
-        authUser(); // only activate when the user sends a auth request
+        notificationDatabase.child(uID);
+        ChildEventListener childEventListener = new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
+                authUser(info, uID);
+                notificationDatabase.removeValue();
+                return;
+            }
+
+            @Override
+            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                return;
+            }
+
+            @Override
+            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+                return;
+            }
+
+            @Override
+            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                return;
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                return;
+            }
+        };
+        notificationDatabase.addChildEventListener(childEventListener);
     }
 
-    protected void authUser(){
+     private void authUser(String info, String user){
+
         ImageButton authBtn = findViewById(R.id.btnAuth);
         TextView txtInfo = findViewById(R.id.txtInfo);
+        txtInfo.setText(info);
+        authBtn.setVisibility(View.VISIBLE);
+
         BiometricManager biometricManager = BiometricManager.from(this);
         switch (biometricManager.canAuthenticate()){
             case BiometricManager.BIOMETRIC_SUCCESS:
@@ -61,6 +97,7 @@ public class MainActivity extends AppCompatActivity {
 
             case BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE:
                 txtInfo.setText("Hardware Needed For Biometric Auth is Unavilable");
+                authBtn.setVisibility(View.GONE);
                 break;
 
             case BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED:
@@ -84,6 +121,9 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(getApplicationContext(),
                         "Authentication error: " + errString, Toast.LENGTH_SHORT)
                         .show();
+                sendResult(false, user);
+                authBtn.setVisibility(View.GONE);
+                txtInfo.setText("Authentication Failed");
             }
 
             @Override
@@ -92,7 +132,9 @@ public class MainActivity extends AppCompatActivity {
                 super.onAuthenticationSucceeded(result);
                 Toast.makeText(getApplicationContext(),
                         "Authentication succeeded!", Toast.LENGTH_SHORT).show();
-
+                sendResult(true, user);
+                authBtn.setVisibility(View.GONE);
+                txtInfo.setText("Authentication Succeeded");
             }
 
             @Override
@@ -101,6 +143,8 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(getApplicationContext(), "Authentication failed",
                         Toast.LENGTH_SHORT)
                         .show();
+                authBtn.setVisibility(View.GONE);
+                txtInfo.setText("Authentication Failed");
             }
         });
 
@@ -115,15 +159,14 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    protected void sendMessage(String message, String sender, String receiver){
-        DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference();
+    protected void sendResult(Boolean message, String sender){
+        DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference().child("authRequests");
 
         HashMap<String, Object> hashMap = new HashMap<>();
         hashMap.put("sender", sender);
-        hashMap.put("receiver", receiver);
         hashMap.put("message", message);
 
-        databaseReference.child("Requests/"+sender).push().setValue(hashMap);
+        databaseReference.child(sender).push().setValue(hashMap);
 
     }
 }

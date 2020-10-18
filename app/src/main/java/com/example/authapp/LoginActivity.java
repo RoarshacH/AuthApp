@@ -1,5 +1,6 @@
 package com.example.authapp;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
@@ -10,11 +11,14 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.iid.FirebaseInstanceId;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -22,7 +26,6 @@ public class LoginActivity extends AppCompatActivity {
     Button login;
     FirebaseUser firebaseUser;
     FirebaseAuth auth;
-    DatabaseReference mUser;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,10 +33,8 @@ public class LoginActivity extends AppCompatActivity {
         setContentView(R.layout.activity_login);
         firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         auth  = FirebaseAuth.getInstance();
-
         email = findViewById(R.id.txtEmail);
         password = findViewById(R.id.txtPass);
-
         login = findViewById(R.id.btnLogin);
 
         login.setOnClickListener(new View.OnClickListener() {
@@ -55,23 +56,11 @@ public class LoginActivity extends AppCompatActivity {
                     auth.signInWithEmailAndPassword(txt_email, txt_password)
                             .addOnCompleteListener(task -> {
                                 if(task.isSuccessful()){
-                                    String deviceToken = FirebaseInstanceId.getInstance().getToken();
-                                    mUser = FirebaseDatabase.getInstance().getReference().child("users");
-                                    String uID = auth.getCurrentUser().getUid();
-                                    mUser.child(uID).child("device_token").setValue(deviceToken).addOnCompleteListener(result -> {
-                                        if(result.isSuccessful()){
-                                            Toast.makeText(LoginActivity.this, "Login Success", Toast.LENGTH_SHORT).show();
-                                            Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-                                            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-                                            startActivity(intent);
-                                            finish();
-                                        }
-                                        else{
-                                            Toast.makeText(LoginActivity.this,
-                                                    "Adding new device ID Failed. Cannot Receive Notifications",
-                                                    Toast.LENGTH_SHORT).show();
-                                        }
-                                    });
+                                    Toast.makeText(LoginActivity.this, "Login Success", Toast.LENGTH_SHORT).show();
+                                    Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+                                    startActivity(intent);
+                                    finish();
                                 }
                                 else{
                                     Toast.makeText(LoginActivity.this, "Auth Failed Try again", Toast.LENGTH_SHORT).show();
